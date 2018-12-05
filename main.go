@@ -18,7 +18,7 @@ func favHandler(c *gin.Context) {
 
 // versionHandler reports the version of the serivce
 func versionHandler(c *gin.Context) {
-	c.String(http.StatusOK, "Aries-APTrust version %s", version)
+	c.String(http.StatusOK, "Aries APTrust version %s", version)
 }
 
 // healthCheckHandler reports the health of the serivce
@@ -57,7 +57,7 @@ func main() {
 	// Get config params
 	log.Printf("Read configuration...")
 	var port int
-	flag.IntVar(&port, "port", 8080, "Aries-APTrust port (default 8080)")
+	flag.IntVar(&port, "port", 8080, "Aries APTrust port (default 8080)")
 	flag.Parse()
 
 	log.Printf("Setup routes...")
