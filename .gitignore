@@ -12,5 +12,5 @@ dist/
 /src
 env.*
 /pkg
-deploy.sh
+run.sh
 *.sh
