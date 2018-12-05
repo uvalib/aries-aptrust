@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -11,6 +12,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+// This is a minimal mapping of the APTrust response.
+// Note that all property names
+// must be leading caps and match the json repspone field (case insensitive)
+// or be mapped with a json attribute
+type apTrustResp struct {
+	Count    int
+	Next     string
+	Previous string
+	// results
+}
 
 // Version of the service
 const version = "1.0.0"
@@ -50,14 +62,39 @@ func ariesPing(c *gin.Context) {
 	c.String(http.StatusOK, "APTrust Aries API")
 }
 
-// ariesLookup rwill query APTrust for information on the supplied identifer
+// ariesLookup will query APTrust for information on the supplied identifer
 func ariesLookup(c *gin.Context) {
 	passedID := c.Param("id")
+
+	// Try several APTrust API endpoints to search for the ID.
+	// Collect all and return results as JSON
+	// endpoints: /objects?identifier=ID, /objects?alt_identifier=ID, /objects?bag_name=ID
+	// eventually include: /files?identifier_like=ID where ID is filename. Use like because
+	// identifer is <institutions_domain_name>/<intellectual_object_identifier_parent_object>/<individual_file_name>
+	endpoints := []string{"objects?identifier", "objects?alt_identifier", "objects?bag_name"}
+	for _, ep := range endpoints {
+		url := fmt.Sprintf("%s/%s=%s", apTrustURL, ep, passedID)
+		respStr, err := getAPIResponse(url)
+		if err != nil {
+			log.Printf("API returned error: %s", err.Error())
+		} else {
+			var respStruct apTrustResp
+			marshallErr := json.Unmarshal([]byte(respStr), &respStruct)
+			if marshallErr != nil {
+				log.Printf("Unable to parse response: %s", marshallErr.Error())
+				continue
+			}
+
+			log.Printf("Hits: %d", respStruct.Count)
+		}
+	}
+
 	c.String(http.StatusNotFound, "%s not found", passedID)
 }
 
 // getAPIResponse is a helper used to call a JSON endpoint and return the resoponse as a string
 func getAPIResponse(url string) (string, error) {
+	log.Printf("Get resonse for: %s", url)
 	timeout := time.Duration(10 * time.Second)
 	client := http.Client{
 		Timeout: timeout,
