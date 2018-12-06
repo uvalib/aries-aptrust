@@ -16,7 +16,7 @@ import (
 
 type aries struct {
 	Identifiers []string `json:"identifier,omitempty"`
-	AdminURL    []string `json:"admin_url,omitempty"`
+	AdminURL    []string `json:"administrative_url,omitempty"`
 }
 
 type apTrustResult struct {
