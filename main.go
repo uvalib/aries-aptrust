@@ -8,20 +8,32 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-// This is a minimal mapping of the APTrust response.
-// Note that all property names
-// must be leading caps and match the json repspone field (case insensitive)
-// or be mapped with a json attribute
+type aries struct {
+	Identifiers []string `json:"identifier,omitempty"`
+	AdminURL    []string `json:"admin_url,omitempty"`
+}
+
+type apTrustResult struct {
+	Title         string `json:"title"`
+	Identifier    string `json:"identifier"`
+	AltIdentifier string `json:"alt_identifier"`
+	BagName       string `json:"bag_name"`
+	InDPN         bool   `json:"in_dpn"`
+	FileCount     int    `json:"file_count"`
+	Institution   string `json:"institution"`
+}
+
 type apTrustResp struct {
 	Count    int
 	Next     string
 	Previous string
-	// results
+	Results  []apTrustResult
 }
 
 // Version of the service
@@ -65,6 +77,8 @@ func ariesPing(c *gin.Context) {
 // ariesLookup will query APTrust for information on the supplied identifer
 func ariesLookup(c *gin.Context) {
 	passedID := c.Param("id")
+	out := aries{}
+	hasMatches := false
 
 	// Try several APTrust API endpoints to search for the ID.
 	// Collect all and return results as JSON
@@ -78,18 +92,33 @@ func ariesLookup(c *gin.Context) {
 		if err != nil {
 			log.Printf("API returned error: %s", err.Error())
 		} else {
-			var respStruct apTrustResp
-			marshallErr := json.Unmarshal([]byte(respStr), &respStruct)
+			var resp apTrustResp
+			marshallErr := json.Unmarshal([]byte(respStr), &resp)
 			if marshallErr != nil {
 				log.Printf("Unable to parse response: %s", marshallErr.Error())
 				continue
 			}
 
-			log.Printf("Hits: %d", respStruct.Count)
+			if resp.Count > 0 {
+				hasMatches = true
+				for _, hit := range resp.Results {
+					log.Printf("Match %s", hit.Title)
+					out.Identifiers = append(out.Identifiers, hit.Identifier)
+					out.Identifiers = append(out.Identifiers, hit.AltIdentifier)
+					out.Identifiers = append(out.Identifiers, hit.BagName)
+					idx := strings.Index(apTrustURL, "/member-api")
+					url := fmt.Sprintf("%s/objects/%s", apTrustURL[0:idx], hit.Identifier)
+					out.AdminURL = append(out.AdminURL, url)
+				}
+			}
 		}
 	}
 
-	c.String(http.StatusNotFound, "%s not found", passedID)
+	if hasMatches {
+		c.JSON(http.StatusOK, out)
+	} else {
+		c.String(http.StatusNotFound, "%s not found", passedID)
+	}
 }
 
 // getAPIResponse is a helper used to call a JSON endpoint and return the resoponse as a string
