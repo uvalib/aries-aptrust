@@ -37,7 +37,7 @@ type apTrustResp struct {
 }
 
 // Version of the service
-const version = "1.0.0"
+const version = "1.1.0"
 
 // Config info; APTrust host and API key
 var apTrustURL string
